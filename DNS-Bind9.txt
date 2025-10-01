@@ -1,0 +1,124 @@
+###########################################
+Setup Linux as a Server : IP Addressing
+
+1. Set a Persistent Static IP address on Linux
+!@NetOps
+sudo nmcli connection add type ethernet con-name "static-net2" ifname ens192 ipv4.method manual ipv4.addresses 192.168.102.100/24 autoconnect yes
+nmcli connection up "static-net2"
+
+nmcli options
+- ipv4.method
+- ipv4.routes
+- ipv4.addresses
+- ipv4.gateway
+- ipv4.dns
+
+or
+
+Set a temporary static IP address
+!@NetOps
+ifconfig ens192 192.168.102.100 netmask 255.255.255.0 up
+
+
+2. Set a static route
+!@NetOps
+ip route add 192.168.102.0/24 dev ens192
+
+
+VERIFICATION - ping the IP
+
+
+###########################################
+Setup Linux DNS Server (Bind9)
+
+Notes:
+Set proper permissions and ownerhip of file to :named
+Set SELinux security label for named directory
+
+1. Install Bind9
+
+!@NetOps
+sudo yum install bind bind-utils dnsutils -y
+
+
+
+2. Configure firewall to allow DNS on Public interfaces
+!@NetOps
+firewall-cmd --permanent --zone=public --add-service=dns 
+firewall-cmd --reload
+
+or
+
+Disable Firewall
+!@NetOps
+systemctl disable --now firewalld
+
+
+3. Configure DNS Properties
+!@NetOps
+nano /etc/named.conf
+-------------------------
+options {
+        listen-on port 53 { 127.0.0.1; 192.168.102.100; };
+        listen-on-v6 port 53 { 127.0.0.1; 192.168.102.100; };
+        directory       "/var/named";
+        dump-file       "/var/named/data/cache_dump.db";
+        statistics-file "/var/named/data/named_stats.txt";
+        memstatistics-file "/var/named/data/named_mem_stats.txt";
+        secroots-file   "/var/named/data/named.secroots";
+        recursing-file  "/var/named/data/named.recursing";
+        allow-query     { any; };
+		
+		
+        forwarders {
+            8.8.8.8;
+            8.8.4.4;
+        }
+        recursion yes;
+        dnssec-validation no;
+-------------------------
+
+listen-on : interface ips that will open the dns service.
+allow-query : specify ips tha are allowed to send dns queries to the server.
+
+
+4. Create a Forward & Reverse lookup zones
+!@NetOps
+nano /etc/named.conf
+-------------------------
+zone "rivan.com" IN {
+        type master;
+        file "art.server.db";
+        allow-update { none; };
+        allow-query { any; };
+};
+
+zone "192.168.102.in-addr.arpa" IN {
+        type master;
+        file "art.server.rev";
+        allow-update { none; };
+        allow-query { any; };
+};
+--------------------------
+
+DNS types:
+- master = primary zone
+- slave = secondary zone
+  - masters {127.0.0.1; } = specify masters for zone transfer
+  - allow-transfer { 127.0.0.1; }
+
+
+Create the files for both zones under /var/named directory
+
+
+3. Configure SELinux to properly set security for bind variables
+
+!@NetOps
+restorecon -rv /var/named
+
+or
+
+Disable Enforcement
+
+!@NetOps
+setenforce 0
