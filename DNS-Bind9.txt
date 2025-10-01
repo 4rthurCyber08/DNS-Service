@@ -88,14 +88,14 @@ nano /etc/named.conf
 -------------------------
 zone "rivan.com" IN {
         type master;
-        file "art.server.db";
+        file "rivan.com.db";
         allow-update { none; };
         allow-query { any; };
 };
 
 zone "192.168.102.in-addr.arpa" IN {
         type master;
-        file "art.server.rev";
+        file "rivan.com.rev";
         allow-update { none; };
         allow-query { any; };
 };
@@ -109,10 +109,75 @@ DNS types:
 
 
 Create the files for both zones under /var/named directory
+!@NetOps
+cd /var/named
+nano rivan.com.db
+
+---------------------------                                                     
+$TTL 86400
+@ IN SOA rivan.com. admin.rivan.com. (
+    2019061800 ;Serial
+    3600 ;Refresh
+    1800 ;Retry
+    604800 ;Expire
+    86400 ;Minimum TTL
+)
+
+;Name Server Information
+@ IN NS ns.rivan.com.
+
+;IP for Name Server
+@ IN A 192.168.104.100
 
 
-3. Configure SELinux to properly set security for bind variables
+www IN A 192.168.104.100
+docs  IN A 192.168.104.100
+smtp IN CNAME rivan.com.
+pop IN CNAME rivan.com.
+imap IN CNAME rivan.com.
+ns IN A 192.168.104.100
+admin IN CNAME rivan.com
 
+----------------------------
+
+
+!@NetOps
+cd /var/named
+nano rivan.com.rev
+----------------------------
+$TTL 86400
+@ IN SOA dns-primary.rivan.com. admin.rivan.com. (
+    2019061800 ;Serial
+    3600 ;Refresh
+    1800 ;Retry
+    604800 ;Expire
+    86400 ;Minimum TTL
+)
+;Name Server Information
+@ IN NS dns-primary.rivan.com.
+
+;Reverse lookup for Name Server
+100 IN PTR ns.rivan.com.
+
+;PTR Record IP address to HostName
+100 IN PTR rivan.com.
+100 IN PTR www.rivan.com.
+100 IN PTR mail.rivan.com.
+100 IN PTR docs.rivan.com.
+100 IN PTR smtp.rivan.com.
+100 IN PTR imap.rivan.com.
+100 IN PTR pop.rivan.com.
+----------------------------
+
+
+5. Change ownership for the zone files.
+!@NetOps
+chown named:named rivan.com.db 
+chown named:named rivan.com.rev
+ls -l
+
+
+6. Configure SELinux to properly set security for bind variables
 !@NetOps
 restorecon -rv /var/named
 
@@ -122,3 +187,8 @@ Disable Enforcement
 
 !@NetOps
 setenforce 0
+
+
+7. Restart and finalize bind files
+!@NetOps
+systemctl restart named
