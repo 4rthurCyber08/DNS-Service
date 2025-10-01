@@ -192,3 +192,13 @@ setenforce 0
 7. Restart and finalize bind files
 !@NetOps
 systemctl restart named
+
+
+8. Set the server as its own DNS server
+!@NetOps
+Add Nameserver
+nano /etc/resolve.conf
+
+----------------------------
+nameserver 127.0.0.1
+----------------------------
